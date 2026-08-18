@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+.idea/
+.vscode/
+*.egg-info/
+.pytest_cache/
+.rem
+runs/
+/datasets/
+data_cache/
+*.pt
+*.pth
+!checkpoints/.gitkeep

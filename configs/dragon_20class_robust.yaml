@@ -1,0 +1,36 @@
+# Robustness config: the 20 DRAGON generators that natively render at
+# 1024x1024 (resize/crop robustness needs a uniform input resolution),
+# trained WITH on-the-fly corruption (JPEG Q~U[60,90], blur sigma~U[0.1,4.0],
+# resize short-edge~U[384,768]), matching the paper's protocol exactly.
+# Evaluate the resulting checkpoint with eval.py against both clean and
+# corrupted test data to reproduce the 15-condition grid.
+
+dataset:
+  label_map: configs/label_maps/dragon_20class_native1024.json
+  data_root: ${DRAGON_DATA_ROOT}
+  patch: 256
+  presplit: true
+
+augment_train:
+  flip: true
+  p_jpeg: 0.5
+  p_blur: 0.5
+  p_resize: 0.5
+  jpeg_quality: [60, 90]
+  blur_sigma: [0.1, 4.0]
+  resize_short_edge: [384, 768]
+
+model:
+  conv_channels: [128, 256, 512, 1024]
+  dropout: 0.3
+
+train:
+  epochs: 1000
+  batch_size: 16
+  num_workers: 20
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  lr_min: 1.0e-6
+  early_stopping_patience: 9999
+  label_smoothing: 0.0
+  stats_batch_size: 32

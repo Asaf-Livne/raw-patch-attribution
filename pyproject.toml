@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "raw-patch-attribution"
+version = "1.0.0"
+description = "RPA: scalable black-box generative-model attribution from raw image patches."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Asaf Livne" },
+    { name = "Amir Jevnisek" },
+    { name = "Shai Avidan" },
+]
+dependencies = [
+    "torch>=2.4",
+    "torchvision>=0.19",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "scikit-learn>=1.4",
+    "pyyaml>=6.0",
+    "pillow>=10.0",
+    "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+cluster = ["hdbscan>=0.8", "umap-learn>=0.5"]  # cluster.py discovery
+download = ["datasets>=2.14"]                  # scripts/download_data.py
+plot = ["matplotlib>=3.8"]                     # train.py curves.png (skipped if absent)
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["datalib*", "models*"]

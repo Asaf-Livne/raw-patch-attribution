@@ -1,0 +1,28 @@
+# Open-set training config: 17-known OpenFake subset (paper protocol: 17
+# known / 10 unseen, repeated over 5 random draws with --seed 42..46 passed
+# to scripts/split_known_unknown.py). Same recipe as the closed-set headline
+# configs, plus label smoothing (the paper's open-set recipe).
+
+dataset:
+  label_map: configs/label_maps/openfake_17known_seed42.json  # generate with scripts/split_known_unknown.py
+  data_root: ${OPENFAKE_DATA_ROOT}
+  patch: 256
+  presplit: true
+
+augment_train:
+  flip: true
+
+model:
+  conv_channels: [128, 256, 512, 1024]
+  dropout: 0.3
+
+train:
+  epochs: 1000
+  batch_size: 16
+  num_workers: 20
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  lr_min: 1.0e-6
+  early_stopping_patience: 9999
+  label_smoothing: 0.2
+  stats_batch_size: 32

@@ -1,0 +1,12 @@
+# Few-shot adaptation target: GenImage-9 under LIDA's protocol (Wang et al.
+# 2026). Only train/ (30 imgs/class pool) and val/ (200 imgs/class query
+# set) splits exist -- no held-out test. Run adapt.py with
+# --val_split val --test_split val (the query set doubles as both, matching
+# the paper's "no val to early-stop on; val IS query" protocol) and
+# --shots {1,10}.
+
+dataset:
+  label_map: configs/label_maps/genimage_9class.json
+  data_root: ${GENIMAGE9_DATA_ROOT}
+  patch: 256
+  presplit: true

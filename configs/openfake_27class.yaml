@@ -1,0 +1,29 @@
+# OpenFake-27 headline closed-set config. Recipe matches the paper's stated
+# architecture (4-block [128,256,512,1024], dropout 0.3, wd 1e-4) and the
+# confirmed-winning schedule (1000 epochs, cosine 1e-3 -> 1e-6, batch 16,
+# early stopping effectively disabled). Set OPENFAKE_DATA_ROOT to the
+# OpenFake "v2" split directory before running.
+
+dataset:
+  label_map: configs/label_maps/openfake_27class.json
+  data_root: ${OPENFAKE_DATA_ROOT}
+  patch: 256
+  presplit: true
+
+augment_train:
+  flip: true
+
+model:
+  conv_channels: [128, 256, 512, 1024]
+  dropout: 0.3
+
+train:
+  epochs: 1000
+  batch_size: 16
+  num_workers: 20
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  lr_min: 1.0e-6
+  early_stopping_patience: 9999
+  label_smoothing: 0.0
+  stats_batch_size: 32
