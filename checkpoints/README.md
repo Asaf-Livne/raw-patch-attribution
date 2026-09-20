@@ -2,7 +2,7 @@
 
 The two headline classifiers are distributed as
 [release assets](https://github.com/Asaf-Livne/raw-patch-attribution/releases/tag/v1.0) rather
-than tracked in git — they are ~71 MB each.
+than tracked in git — they are ~25 MB each (weights, config, class names and channel statistics only).
 
 | File | Benchmark | Paper | Validated | Aggregation |
 |:--|:--|:--|:--|:--|
@@ -33,7 +33,7 @@ Or directly:
 import torch
 from models.cnn import build_model
 
-ckpt = torch.load("checkpoints/dragon_25class.pt", map_location="cpu", weights_only=False)
+ckpt = torch.load("checkpoints/dragon_25class.pt", map_location="cpu", weights_only=True)
 model = build_model(ckpt["config"], num_classes=len(ckpt["class_names"]))
 model.load_state_dict(ckpt["model"])
 model.eval()

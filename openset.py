@@ -32,7 +32,7 @@ from config import load_config
 from datalib.dataset import PatchFolderDataset
 from datalib.openset_metrics import au_oscr, auroc
 from datalib.patches import aggregate, patchify
-from eval import _resize_up_to_patch, load_checkpoint
+from eval import _resize_up_to_patch, load_checkpoint, model_input
 
 
 def split_known_unknown(full_label_map: dict, known_names: list[str]) -> tuple[dict, dict]:
@@ -51,9 +51,8 @@ def score_dataset(model, dataset, mean, std, device) -> tuple[np.ndarray, np.nda
         patch = dataset.patch
         if min(image.shape[1], image.shape[2]) < patch:
             image = _resize_up_to_patch(image, patch)
-        tiles, weights = patchify(image.cpu(), patch=patch)
-        tiles, weights = tiles.to(device), weights.to(device)
-        logits = model((tiles - mean) / std)
+        tiles, weights = patchify(image, patch=patch)
+        logits = model(model_input(model, (tiles - mean) / std))
         score = aggregate(logits.float().cpu(), weights.float().cpu(), "logit_avg")
         probs = score.softmax(-1).numpy()
         scores.append(float(probs.max()))

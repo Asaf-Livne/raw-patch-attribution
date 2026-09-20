@@ -56,7 +56,7 @@ def patchify(image: torch.Tensor, patch: int = 256) -> tuple[torch.Tensor, torch
             patches.append(image[:, y:y + patch, x:x + patch])
             weights.append(1.0 / cover[y:y + patch, x:x + patch].mean().item())
 
-    return torch.stack(patches, dim=0), torch.tensor(weights, dtype=torch.float32)
+    return torch.stack(patches, dim=0), torch.tensor(weights, dtype=torch.float32, device=image.device)
 
 
 def aggregate(logits: torch.Tensor, weights: torch.Tensor, mode: str) -> torch.Tensor:

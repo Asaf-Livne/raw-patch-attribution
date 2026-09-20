@@ -15,6 +15,9 @@ protocol) or prob_avg.
 image (the largest requested n with ceil(sqrt(n))*patch <= image size), so a
 mixed-resolution dataset scores each image at the right budget. A "best"
 accumulator additionally reports the max-eligible-n number per image.
+
+Inference path: the image is tiled on the device, BatchNorm is folded into the
+convolutions, and the network runs channels-last in fp16 on CUDA.
 """
 
 from __future__ import annotations
@@ -78,15 +81,45 @@ def _select_central_patches(patches, weights, n_y, n_x, k):
     return patches[keep], weights[keep]
 
 
+def _fold_batchnorm(model):
+    """Fuse each Conv2d -> BatchNorm2d pair of the backbone into one Conv2d.
+    Exact in eval mode; saves a kernel and an activation round-trip per block."""
+    from torch.nn.utils.fusion import fuse_conv_bn_eval
+    src, layers, i = list(model.backbone), [], 0
+    while i < len(src):
+        if (i + 1 < len(src) and isinstance(src[i], torch.nn.Conv2d)
+                and isinstance(src[i + 1], torch.nn.BatchNorm2d)):
+            layers.append(fuse_conv_bn_eval(src[i], src[i + 1]))
+            i += 2
+        else:
+            layers.append(src[i])
+            i += 1
+    model.backbone = torch.nn.Sequential(*layers)
+    return model
+
+
 def load_checkpoint(checkpoint_path: str, device: torch.device):
+    """Load a checkpoint for inference: BatchNorm folded, channels-last, fp16
+    on CUDA (fp32 on CPU). Feed it through `model_input`."""
     ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
     class_names = ckpt["class_names"]
     model = build_model(ckpt["config"], num_classes=len(class_names)).to(device)
     model.load_state_dict(ckpt["model"])
     model.eval()
+    model = _fold_batchnorm(model)
+    if device.type == "cuda":
+        model = model.half()
+        torch.backends.cudnn.benchmark = True
+    model = model.to(memory_format=torch.channels_last)
     mean = ckpt["channel_mean"].view(-1, 1, 1).to(device).float()
     std = ckpt["channel_std"].view(-1, 1, 1).to(device).float()
     return model, mean, std, class_names
+
+
+def model_input(model, patches: torch.Tensor) -> torch.Tensor:
+    """Match a normalised patch batch to the model's dtype and memory format."""
+    dtype = next(model.parameters()).dtype
+    return patches.to(dtype).contiguous(memory_format=torch.channels_last)
 
 
 def _new_acc(num_classes: int) -> dict:
@@ -159,8 +192,7 @@ def run_eval(model, class_names, mean, std, dataset, aggregation: str,
             base_tiles, base_w = _center_crop(image, patch).unsqueeze(0), torch.ones(1, device=device)
             n_y = n_x = 1
         else:
-            tiles, w = patchify(image.cpu(), patch=patch)
-            base_tiles, base_w = tiles.to(device), w.to(device)
+            base_tiles, base_w = patchify(image, patch=patch)
             n_y, n_x = max(1, ceil(H / patch)), max(1, ceil(W / patch))
 
         for n in ns_here:
@@ -175,7 +207,7 @@ def run_eval(model, class_names, mean, std, dataset, aggregation: str,
             else:
                 patches, weights = base_tiles, base_w
 
-            logits = model((patches - mean) / std)
+            logits = model(model_input(model, (patches - mean) / std))
             score = aggregate(logits.float().cpu(), weights.float().cpu(), aggregation)
             probs = score.softmax(-1).numpy()
             pred = int(score.argmax().item())

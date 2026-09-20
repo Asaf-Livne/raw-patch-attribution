@@ -91,9 +91,10 @@ autoencoder. Mean pairwise accuracy and per-image inference time.
 |:--|:--|:--:|:--:|
 | LatentTracer | Model weights | 54.9 | 70.3 |
 | AEDR | VAE weights | 0.53 | 95.1 |
-| **RPA (ours)** | **Image only** | **0.0085** | **97.7** |
+| **RPA (ours)** | **Image only** | **0.0023** | **97.7** |
 
 Two orders of magnitude faster than the closest competitor, and strictly black-box.
+Ours: one 1024² image (16 patches) on an RTX 5090, fp16, PNG decode excluded.
 
 ### Open-set & discovery
 
@@ -142,7 +143,7 @@ pip install -e ".[plot]"       # matplotlib, for training-curve PNGs
 
 Both headline classifiers are published as
 [release assets](https://github.com/Asaf-Livne/raw-patch-attribution/releases/tag/v1.0)
-(~71 MB each), keeping the repository light.
+(~25 MB each), keeping the repository light.
 
 | Checkpoint | Benchmark | Classes | Top-1 | Download |
 |:--|:--|:--:|:--:|:--|
@@ -213,6 +214,10 @@ python eval.py --checkpoint checkpoints/dragon_25class.pt \
 `--num_patches` accepts a list; each image is scored at the largest budget its
 resolution allows, so mixed-resolution benchmarks are handled correctly.
 Results land in `summary.json` plus per-budget confusion matrices.
+
+Inference tiles the image on the GPU and runs the BatchNorm-folded network in
+fp16 (fp32 on CPU): about 2.3 ms per 1024² image on an RTX 5090, with no
+change in accuracy.
 
 For the *"what does the CNN see"* frequency analysis, set
 `dataset.input_filter` to `lowpass`, `highpass`, or `fftmag` in the eval config.

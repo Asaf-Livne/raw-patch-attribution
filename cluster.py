@@ -36,7 +36,7 @@ import torch
 from config import load_config
 from datalib.dataset import PatchFolderDataset
 from datalib.patches import patchify
-from eval import _resize_up_to_patch, _select_central_patches, load_checkpoint
+from eval import _resize_up_to_patch, _select_central_patches, load_checkpoint, model_input
 from openset import split_known_unknown
 
 
@@ -52,12 +52,11 @@ def extract_features(model, dataset, mean, std, device, num_patches: int = 4):
         if min(image.shape[1], image.shape[2]) < patch:
             image = _resize_up_to_patch(image, patch)
         _, H, W = image.shape
-        tiles, weights = patchify(image.cpu(), patch=patch)
+        tiles, weights = patchify(image, patch=patch)
         if tiles.shape[0] > num_patches:
             n_y, n_x = max(1, ceil(H / patch)), max(1, ceil(W / patch))
             tiles, weights = _select_central_patches(tiles, weights, n_y, n_x, num_patches)
-        tiles, weights = tiles.to(device), weights.to(device)
-        f = model.features((tiles - mean) / std)
+        f = model.features(model_input(model, (tiles - mean) / std)).float()
         w = (weights / weights.sum()).unsqueeze(1)
         feats.append((f * w).sum(0).cpu().numpy())
         labels.append(int(label))
