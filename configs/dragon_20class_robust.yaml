@@ -8,7 +8,7 @@
 dataset:
   label_map: configs/label_maps/dragon_20class_native1024.json
   data_root: ${DRAGON_DATA_ROOT}
-  patch: 256
+  patch: 64
   presplit: true
 
 augment_train:
@@ -21,16 +21,16 @@ augment_train:
   resize_short_edge: [384, 768]
 
 model:
-  conv_channels: [128, 256, 512, 1024]
-  dropout: 0.3
+  conv_channels: [256, 512, 1024]
+  dropout: 0.5
 
 train:
-  epochs: 1000
-  batch_size: 16
+  epochs: 75
+  batch_size: 256
   num_workers: 20
   lr: 1.0e-3
-  weight_decay: 1.0e-4
+  weight_decay: 1.0e-3
   lr_min: 1.0e-6
-  early_stopping_patience: 9999
+  early_stopping_patience: 15
   label_smoothing: 0.0
   stats_batch_size: 32

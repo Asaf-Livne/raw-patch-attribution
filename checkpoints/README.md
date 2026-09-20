@@ -6,8 +6,11 @@ than tracked in git — they are ~25 MB each (weights, config, class names and c
 
 | File | Benchmark | Paper | Validated | Aggregation |
 |:--|:--|:--|:--|:--|
-| `dragon_25class.pt` | DRAGON, 25 generators | 98.0 % | 98.3 % | all patches |
-| `openfake_27class.pt` | OpenFake, 27 generators | 92.9 % | 92.7 % | 4-patch `logit_avg` |
+| `dragon_25class.pt` | DRAGON, 25 generators | 98.9 % | 98.9 % | all patches, `logit_avg` |
+| `openfake_27class.pt` | OpenFake, 27 generators | 95.0 % | 94.1 % | all patches, `logit_avg` |
+
+Both are the 64×64-patch, three-block models of the current paper version
+(`configs/dragon_25class.yaml`, `configs/openfake_27class.yaml`).
 
 ## Download
 
@@ -24,7 +27,7 @@ Through `eval.py`:
 
 ```bash
 python eval.py --checkpoint checkpoints/dragon_25class.pt \
-    --config configs/dragon_25class.yaml --split test --num_patches "1 4 16"
+    --config configs/dragon_25class.yaml --split test --num_patches "1 16 256"
 ```
 
 Or directly:

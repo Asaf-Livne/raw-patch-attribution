@@ -11,10 +11,10 @@ Usage:
 Aggregation rules (datalib.patches.AGGREGATIONS): logit_avg (the paper's
 protocol) or prob_avg.
 
-`--num_patches` accepts a list (e.g. "1 4 16"); eligibility is decided per
-image (the largest requested n with ceil(sqrt(n))*patch <= image size), so a
-mixed-resolution dataset scores each image at the right budget. A "best"
-accumulator additionally reports the max-eligible-n number per image.
+`--num_patches` accepts a list (e.g. "1 16 256"); each image is scored with
+min(n, its own tile count) patches, so a budget at or above the tile count
+means all patches. A "best" accumulator additionally reports the largest
+requested n.
 
 Inference path: the image is tiled on the device, BatchNorm is folded into the
 convolutions, and the network runs channels-last in fp16 on CUDA.
@@ -26,7 +26,7 @@ import argparse
 import json
 import sys
 import time
-from math import ceil, sqrt
+from math import ceil
 from pathlib import Path
 
 import numpy as np
@@ -163,14 +163,11 @@ def _finalize(acc: dict, class_names: list[str]) -> dict | None:
 def run_eval(model, class_names, mean, std, dataset, aggregation: str,
             requested_ns: list[int], device: torch.device) -> dict:
     """Evaluate `dataset` with multi-patch aggregation. Returns a dict keyed by
-    `n{N}` (one accumulator per requested patch budget that was eligible for at
-    least one image) plus `best_per_image` (each image's largest eligible N).
+    `n{N}` (each image scored with min(N, its own tile count) patches) plus
+    `best_per_image` (the largest requested N).
     """
     num_classes = len(class_names)
     patch = dataset.patch
-
-    def eligible_for(image_size: int) -> list[int]:
-        return [n for n in requested_ns if n == 1 or ceil(sqrt(n)) * patch <= image_size]
 
     state = {n: _new_acc(num_classes) for n in requested_ns}
     best = _new_acc(num_classes)
@@ -182,10 +179,7 @@ def run_eval(model, class_names, mean, std, dataset, aggregation: str,
         if min(image.shape[1], image.shape[2]) < patch:
             image = _resize_up_to_patch(image, patch)
         _, H, W = image.shape
-        img_size = min(H, W)
-        ns_here = eligible_for(img_size)
-        if not ns_here:
-            continue
+        ns_here = requested_ns
         max_n = max(ns_here)
 
         if max_n == 1:

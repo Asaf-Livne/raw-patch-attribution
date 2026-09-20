@@ -42,21 +42,22 @@ def patchify(image: torch.Tensor, patch: int = 256) -> tuple[torch.Tensor, torch
         raise ValueError(f"expected C x H x W, got shape {tuple(image.shape)}")
     _, H, W = image.shape
 
-    ys = _starts(H, patch)
-    xs = _starts(W, patch)
+    dev = image.device
+    ar = torch.arange(patch, device=dev)
+    rows = torch.tensor(_starts(H, patch), device=dev)[:, None] + ar   # n_y x patch
+    cols = torch.tensor(_starts(W, patch), device=dev)[:, None] + ar   # n_x x patch
 
-    cover = torch.zeros((H, W), dtype=torch.float32, device=image.device)
-    for y in ys:
-        for x in xs:
-            cover[y:y + patch, x:x + patch] += 1.0
+    # One gather materialises every tile in row-major order: C x n_y x n_x x P x P.
+    patches = image[:, rows[:, None, :, None], cols[None, :, None, :]]
+    patches = patches.permute(1, 2, 0, 3, 4).reshape(-1, image.shape[0], patch, patch)
 
-    patches, weights = [], []
-    for y in ys:
-        for x in xs:
-            patches.append(image[:, y:y + patch, x:x + patch])
-            weights.append(1.0 / cover[y:y + patch, x:x + patch].mean().item())
+    # Overlap count factorises into a row count times a column count, so each
+    # patch's mean coverage is the product of its mean row and column counts.
+    cover_y = torch.zeros(H, device=dev).index_add_(0, rows.reshape(-1), torch.ones(rows.numel(), device=dev))
+    cover_x = torch.zeros(W, device=dev).index_add_(0, cols.reshape(-1), torch.ones(cols.numel(), device=dev))
+    weights = 1.0 / (cover_y[rows].mean(1)[:, None] * cover_x[cols].mean(1)[None, :])
 
-    return torch.stack(patches, dim=0), torch.tensor(weights, dtype=torch.float32, device=image.device)
+    return patches, weights.reshape(-1)
 
 
 def aggregate(logits: torch.Tensor, weights: torch.Tensor, mode: str) -> torch.Tensor:

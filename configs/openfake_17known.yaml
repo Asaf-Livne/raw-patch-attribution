@@ -6,23 +6,23 @@
 dataset:
   label_map: configs/label_maps/openfake_17known_seed42.json  # generate with scripts/split_known_unknown.py
   data_root: ${OPENFAKE_DATA_ROOT}
-  patch: 256
+  patch: 64
   presplit: true
 
 augment_train:
   flip: true
 
 model:
-  conv_channels: [128, 256, 512, 1024]
-  dropout: 0.3
+  conv_channels: [256, 512, 1024]
+  dropout: 0.5
 
 train:
-  epochs: 1000
-  batch_size: 16
+  epochs: 75
+  batch_size: 256
   num_workers: 20
   lr: 1.0e-3
-  weight_decay: 1.0e-4
+  weight_decay: 1.0e-3
   lr_min: 1.0e-6
-  early_stopping_patience: 9999
+  early_stopping_patience: 15
   label_smoothing: 0.2
   stats_batch_size: 32

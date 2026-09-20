@@ -23,6 +23,7 @@
 
 ## 📰 News
 
+- **[2026-09]** Checkpoints, configs and inference updated to the 64×64-patch model of the current paper version.
 - **[2026-08]** Code and pretrained checkpoints released.
 - **[2026-08]** [arXiv preprint](https://arxiv.org/abs/2608.15652) released.
 
@@ -51,7 +52,7 @@ than retraining.
 
 - 🪶 **Small.** ~6M parameters, no pretrained encoder, no foundation-model backbone.
 - 🔒 **Strictly black-box.** Image only — no generator weights, no VAE, no prompts.
-- 📐 **Resolution-invariant.** 256² to 4096² without retraining; cost is independent of the number of candidate models.
+- 📐 **Resolution-invariant.** 64² to 4096² without retraining; cost is independent of the number of candidate models.
 - 🧩 **More than a classifier.** The same features give open-set rejection, unsupervised lineage, and few-shot adaptation for free.
 
 ---
@@ -62,8 +63,8 @@ Three steps, one small network.
 
 | | Step | What happens |
 |:--:|:--|:--|
-| **01** | **Patch division** | Split the image into fixed 256×256 RGB patches, overlapping at the edges so every pixel is covered exactly once in the weighting. |
-| **02** | **Per-patch classification** | A compact ~6M-parameter CNN — four strided-conv blocks, global average pool, linear head — scores each patch against every candidate generator in one forward pass. |
+| **01** | **Patch division** | Split the image into fixed 64×64 RGB patches, overlapping at the edges so every pixel is covered exactly once in the weighting. |
+| **02** | **Per-patch classification** | A compact ~6M-parameter CNN — three strided-conv blocks, global average pool, linear head — scores each patch against every candidate generator in one forward pass. |
 | **03** | **Aggregation** | Per-patch scores combine into one image-level label via an overlap-corrected weighted average (`logit_avg`). |
 
 ---
@@ -72,15 +73,19 @@ Three steps, one small network.
 
 ### Black-box attribution
 
-From the image alone, with no model access at all.
+From the image alone, with no model access at all. Top-1 accuracy (%) and
+per-image inference time (ms, mean ± std, RTX 5090).
 
-| Method | #Classes | Acc. (%) | Params (M) | Data |
-|:--|:--:|:--:|:--:|:--|
-| DE-FAKE | 25 | 62.0 | 151 | DRAGON |
-| OCC-CLIP | 25 | 8.6 | 151 | DRAGON |
-| EfficientFormer | 13 | 91.0 | 31 | Private |
-| **RPA (ours)** | **25** | **98.0** | **5.9** | DRAGON |
-| **RPA (ours)** | **27** | **92.9** | **5.9** | OpenFake |
+| Method | Params (M) | Infer. (ms) | DRAGON (25) | OpenFake (27) |
+|:--|:--:|:--:|:--:|:--:|
+| DE-FAKE | 151 | 9.96 ± 1.31 | 62.0 | 57.3 |
+| USIA | 427 | 9.61 ± 1.01 | 52.1 | 50.1 |
+| LIDA | 23.5 | 23.6 ± 12.5 | 24.0 | 17.7 |
+| OCC-CLIP | 151 | 7.87 ± 1.12 | 8.6 | 15.8 |
+| **RPA (ours)** | **5.9** | **2.79 ± 0.04** | **98.9** | **95.0** |
+
+EfficientFormer releases neither code nor data; it reports 91.0 % on 13
+classes of private data with ~4× more images per class.
 
 ### White-box comparison
 
@@ -89,12 +94,14 @@ autoencoder. Mean pairwise accuracy and per-image inference time.
 
 | Method | Access | Infer. (s) | Acc. (%) |
 |:--|:--|:--:|:--:|
-| LatentTracer | Model weights | 54.9 | 70.3 |
-| AEDR | VAE weights | 0.53 | 95.1 |
-| **RPA (ours)** | **Image only** | **0.0023** | **97.7** |
+| LatentTracer | Model weights | 24.06 ± 0.01 | 70.3 |
+| AEDR | VAE weights | 0.267 ± 0.003 | 95.1 |
+| **RPA (ours)** | **Image only** | **0.00279 ± 0.00004** | **99.5** |
 
-Two orders of magnitude faster than the closest competitor, and strictly black-box.
-Ours: one 1024² image (16 patches) on an RTX 5090, fp16, PNG decode excluded.
+Two orders of magnitude faster than the closest competitor, and strictly black-box;
+98.8 % in the harder 8-way single-label setting. Baseline accuracies are taken from
+AEDR; all inference times are re-measured on our hardware, per candidate model
+(ours: one fp16 pass over the 256 patches of a 1024² query, PNG decode excluded).
 
 ### Open-set & discovery
 
@@ -102,8 +109,24 @@ Trained on 17 of OpenFake's 27 generators, with 10 held out as unseen:
 
 | Task | Metric |
 |:--|:--|
-| Rejecting unseen generators | **AU-OSCR 0.862 ± 0.040** |
-| Clustering the 10 unseen sources | **ARI 0.63 · NMI 0.82 · 92 % purity** (~8 clusters recovered against 10 true sources) |
+| Rejecting unseen generators | **AU-OSCR 0.875 ± 0.037** over five draws (best draw 0.918) |
+| Clustering the 10 unseen sources | **ARI 0.64 · NMI 0.84 · 98 % purity** (7 clusters recovered against 10 true sources; five-draw mean ARI 0.54 · NMI 0.78 · 93 % purity) |
+| Recovering model lineage (OpenFake-27, no supervision) | **cophenetic r = 0.910** |
+
+### Adaptation
+
+A frozen 17-class OpenFake backbone with a freshly fit 27-way linear head
+(28 K parameters, ~2 min). Mean ± std over five 17/10 draws.
+
+| Eval. subset | Before | After |
+|:--|:--:|:--:|
+| Original 17 | 95.8 ± 1.3 | 93.3 ± 1.8 |
+| New 10 | — | 85.1 ± 4.2 |
+| All 27 | — | 90.3 ± 0.5 |
+
+Across benchmarks, an OpenFake backbone with a new head attributes DRAGON's 25
+generators at 96.6 % (vs. 98.9 % for DRAGON's own model); the reverse reaches
+86.8 % (vs. 95.0 %).
 
 ### Few-shot adaptation
 
@@ -116,8 +139,10 @@ Only a linear head is fit — the backbone stays frozen.
 | DIRE | 14.3 | 17.2 |
 | ESSP | 17.0 | 22.4 |
 | LIDA | 40.4 | 54.0 |
-| **RPA (ours, OpenFake backbone)** | 37.5 ± 4.5 | **60.3 ± 0.4** |
-| **RPA (ours, DRAGON backbone)** | **38.9 ± 2.4** | 59.5 ± 1.1 |
+| **RPA (ours, OpenFake backbone)** | 47.7 ± 3.5 | 72.0 ± 0.8 |
+| **RPA (ours, DRAGON backbone)** | **52.0 ± 3.6** | **72.4 ± 0.9** |
+
+Baselines as published in LIDA.
 
 ---
 
@@ -147,8 +172,8 @@ Both headline classifiers are published as
 
 | Checkpoint | Benchmark | Classes | Top-1 | Download |
 |:--|:--|:--:|:--:|:--|
-| `dragon_25class.pt` | DRAGON | 25 | 98.0 % | [⬇](https://github.com/Asaf-Livne/raw-patch-attribution/releases/download/v1.0/dragon_25class.pt) |
-| `openfake_27class.pt` | OpenFake | 27 | 92.9 % | [⬇](https://github.com/Asaf-Livne/raw-patch-attribution/releases/download/v1.0/openfake_27class.pt) |
+| `dragon_25class.pt` | DRAGON | 25 | 98.9 % | [⬇](https://github.com/Asaf-Livne/raw-patch-attribution/releases/download/v1.0/dragon_25class.pt) |
+| `openfake_27class.pt` | OpenFake | 27 | 95.0 % | [⬇](https://github.com/Asaf-Livne/raw-patch-attribution/releases/download/v1.0/openfake_27class.pt) |
 
 ```bash
 BASE=https://github.com/Asaf-Livne/raw-patch-attribution/releases/download/v1.0
@@ -208,16 +233,17 @@ python train.py --config configs/dragon_20class_robust.yaml --output runs/dragon
 ```bash
 python eval.py --checkpoint checkpoints/dragon_25class.pt \
     --config configs/dragon_25class.yaml \
-    --split test --aggregation logit_avg --num_patches "1 4 16"
+    --split test --aggregation logit_avg --num_patches "1 16 256"
 ```
 
-`--num_patches` accepts a list; each image is scored at the largest budget its
-resolution allows, so mixed-resolution benchmarks are handled correctly.
-Results land in `summary.json` plus per-budget confusion matrices.
+`--num_patches` accepts a list; each image is scored with min(N, its own tile
+count) patches, so a budget at or above the tile count means all patches (256
+for a 1024² image at 64×64) and mixed-resolution benchmarks are handled
+correctly. Results land in `summary.json` plus per-budget confusion matrices.
 
-Inference tiles the image on the GPU and runs the BatchNorm-folded network in
-fp16 (fp32 on CPU): about 2.3 ms per 1024² image on an RTX 5090, with no
-change in accuracy.
+Inference tiles the image on the GPU in one gather and runs the BatchNorm-folded
+network in fp16 (fp32 on CPU): about 3 ms per 1024² image (256 patches) on an
+RTX 5090, PNG decode excluded, with no change in accuracy.
 
 For the *"what does the CNN see"* frequency analysis, set
 `dataset.input_filter` to `lowpass`, `highpass`, or `fftmag` in the eval config.

@@ -8,5 +8,5 @@
 dataset:
   label_map: configs/label_maps/genimage_9class.json
   data_root: ${GENIMAGE9_DATA_ROOT}
-  patch: 256
+  patch: 64
   presplit: true
