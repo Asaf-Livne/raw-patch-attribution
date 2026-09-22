@@ -1,8 +1,9 @@
 """Deterministic patch tiling for inference.
 
-When a side isn't divisible by `patch`, generate overlapping patches such that
-every pixel is covered at least once. Step is `floor((dim - patch) / (k - 1))`
-where `k = ceil(dim / patch)`.
+Patches sit on the `patch`-pixel grid. When a side isn't divisible by `patch`,
+one extra patch is placed flush with the far edge, overlapping its neighbour, so
+every pixel is covered at least once while every other patch keeps the grid
+alignment the classifier was trained on.
 
 Per-patch weight `w_i = 1 / overlap_count_for_patch_pixels` is consumed at
 aggregation so each pixel contributes uniformly to the image-level prediction.
@@ -10,21 +11,16 @@ aggregation so each pixel contributes uniformly to the image-level prediction.
 
 from __future__ import annotations
 
-from math import ceil
-
 import torch
 
 
 def _starts(dim: int, patch: int) -> list[int]:
     if dim < patch:
         raise ValueError(f"image dim {dim} smaller than patch {patch}")
-    if dim == patch:
-        return [0]
-    k = ceil(dim / patch)
-    if k == 1:
-        return [0]
-    step = (dim - patch) // (k - 1)
-    return [i * step for i in range(k - 1)] + [dim - patch]
+    starts = [i * patch for i in range(dim // patch)]
+    if dim % patch:
+        starts.append(dim - patch)
+    return starts
 
 
 def patchify(image: torch.Tensor, patch: int = 256) -> tuple[torch.Tensor, torch.Tensor]:
