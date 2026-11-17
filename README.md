@@ -6,7 +6,9 @@
 
 *Tel Aviv University*
 
+[![WACV 2027](https://img.shields.io/badge/WACV-2027-1f6feb)](https://asaf-livne.github.io/RPA/)
 [![arXiv](https://img.shields.io/badge/arXiv-2608.15652-b31b1b)](https://arxiv.org/abs/2608.15652)
+[![Project page](https://img.shields.io/badge/Project-page-2ea44f)](https://asaf-livne.github.io/RPA/)
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab)](https://www.python.org/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.4%2B-ee4c2c)](https://pytorch.org/)
@@ -23,6 +25,7 @@
 
 ## 📰 News
 
+- **[2026-11]** 🎉 Accepted to **WACV 2027**.
 - **[2026-09]** Checkpoints, configs and inference updated to the 64×64-patch model of the current paper version.
 - **[2026-08]** Code and pretrained checkpoints released.
 - **[2026-08]** [arXiv preprint](https://arxiv.org/abs/2608.15652) released.
@@ -353,14 +356,11 @@ Every entry point takes `--config <path>` plus its own flags.
 ## 📝 Citation
 
 ```bibtex
-@misc{livne2026scalableblackboxmodelattribution,
-  title         = {Scalable Black-Box Model Attribution for Images},
-  author        = {Asaf Livne and Amir Jevnisek and Shai Avidan},
-  year          = {2026},
-  eprint        = {2608.15652},
-  archivePrefix = {arXiv},
-  primaryClass  = {cs.CV},
-  url           = {https://arxiv.org/abs/2608.15652}
+@inproceedings{livne2027rpa,
+  title     = {Scalable Black-Box Model Attribution for Images},
+  author    = {Asaf Livne and Amir Jevnisek and Shai Avidan},
+  booktitle = {Proceedings of the IEEE/CVF Winter Conference on Applications of Computer Vision (WACV)},
+  year      = {2027}
 }
 ```
 
